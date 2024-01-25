@@ -6,7 +6,7 @@ const cors = require("cors");
 const { dbAfter, dbBefore } = require("./Routes/debugger");
 const app = express();
 const PORT = process.env.PORT || 5008;
-const MONGODB_URI ="mongodb://127.0.0.1:27017/RestaurantData";
+const MONGODB_URI =process.env.DataBase;
 
 app.use(cors());
 app.use(express.json());
