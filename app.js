@@ -1,18 +1,17 @@
 const express = require("express");
 const APIRouter = require("./Routes/APIRouter");
 const mongoose = require("mongoose");
-const cors = require("cors")
+require("dotenv").config();
+const cors = require("cors");
 const { dbAfter, dbBefore } = require("./Routes/debugger");
 const app = express();
-const PORT = 5008;
-const MONGODB_URI = "mongodb://127.0.0.1:27017/RestaurantData";
+const PORT = process.env.PORT || 5008;
+const MONGODB_URI = process.env.DataBase;
 
-app.use(cors())
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use("/", APIRouter);
-
-
 
 mongoose
   .connect(MONGODB_URI)
