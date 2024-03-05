@@ -67,5 +67,16 @@ module.exports.verifyPayment = async (request, response) => {
   }
 };
 
+module.exports.OrderList = async (request, response) => {
+
+   let {email} = request.params
+
+  let result = await OrdersModel.find({email});
+  response.send({
+    status: true,
+    my_order: result,
+  });
+};
+
 //63899916ec6ac0a4b2cbe197620eef1c515df86dc1a2425080048ae35d80bfc1
 //63899916ec6ac0a4b2cbe197620eef1c515df86dc1a2425080048ae35d80bfc1
