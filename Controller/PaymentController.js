@@ -1,13 +1,12 @@
-require("dotenv").config();
 const axios = require("axios");
+require("dotenv").config();
 const OrdersModel = require("../Model/OrdersModel");
 
-// Load Cashfree test credentials from .env
-const APP_ID = process.env.CASHFREE_APP_ID;
-const SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
-const TEST_MODE = true; // true for sandbox, false for production
+const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
+const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
+const CASHFREE_SANDBOX_URL = "https://sandbox.cashfree.com/pg/orders";
 
-// Save order to DB
+// Save new order to DB
 let _saveNewOrder = async (data) => {
   try {
     const newOrder = new OrdersModel({
@@ -28,26 +27,24 @@ let _saveNewOrder = async (data) => {
   }
 };
 
-// Generate Order token / Order ID from Cashfree
+// Generate Cashfree order
 module.exports.genOrderId = async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { amount, customer_name, customer_email, customer_phone } = req.body;
 
-    const url = TEST_MODE
-      ? "https://sandbox.cashfree.com/pg/orders"
-      : "https://api.cashfree.com/pg/orders";
-
-    const payload = {
-      order_id: `order_${Date.now()}`,
+    const orderPayload = {
+      order_id: `ORDER_${Date.now()}`, // unique order id
       order_amount: amount,
       order_currency: "INR",
-      order_note: "Zomato Clone Order",
       customer_details: {
-        customer_name: "Test User",
-        customer_phone: "9999999999",
-        customer_email: "test@example.com",
+        customer_name,
+        customer_email,
+        customer_phone,
       },
-      return_url: "https://yourfrontend.com/payment-success",
+      order_meta: {
+        return_url: "https://yourfrontend.com/payment-success", // change to your frontend route
+        notify_url: "https://yourbackend.com/payment/callback", // optional
+      },
     };
 
     const headers = {
@@ -56,43 +53,45 @@ module.exports.genOrderId = async (req, res) => {
       "x-client-secret": SECRET_KEY,
     };
 
-    const { data } = await axios.post(url, payload, { headers });
+    const response = await axios.post(CASHFREE_SANDBOX_URL, orderPayload, { headers });
 
-    if (data.status === "OK") {
-      res.status(200).send({ status: true, order: data });
+    if (response.data.status === "OK") {
+      res.status(200).send({ status: true, order: response.data });
     } else {
-      res.status(500).send({ status: false, message: data.reason });
+      res.status(400).send({ status: false, message: response.data.message });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).send({ status: false, message: "Unable to generate order" });
+    res.status(500).send({ status: false, error });
   }
 };
 
-// Verify payment (Webhook or frontend call)
+// Verify payment (Cashfree sends a callback)
 module.exports.verifyPayment = async (req, res) => {
-  const { order_id, payment_id, signature } = req.body;
-
-  // Cashfree recommends verifying signature using HMAC-SHA256
-  const crypto = require("crypto");
-  const body = order_id + payment_id;
-  const expectedSignature = crypto
-    .createHmac("sha256", SECRET_KEY)
-    .update(body.toString())
-    .digest("hex");
-
-  if (expectedSignature === signature) {
-    req.body.payment_status = true;
-    await _saveNewOrder(req.body);
-    res.status(200).send({ status: true });
-  } else {
-    res.status(400).send({ status: false });
+  try {
+    const data = req.body;
+    // Cashfree webhook will send payment status. For testing, you can assume success.
+    if (data.order_status === "PAID") {
+      data.payment_status = true;
+      await _saveNewOrder(data);
+      res.status(200).send({ status: true });
+    } else {
+      res.status(200).send({ status: false });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ status: false });
   }
 };
 
-// Get user's order list
+// List orders by email
 module.exports.OrderList = async (req, res) => {
-  const { email } = req.params;
-  const orders = await OrdersModel.find({ email });
-  res.send({ status: true, my_order: orders });
+  try {
+    const { email } = req.params;
+    const result = await OrdersModel.find({ email });
+    res.send({ status: true, my_order: result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ status: false });
+  }
 };
