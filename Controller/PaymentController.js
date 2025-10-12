@@ -2,12 +2,12 @@ require('dotenv').config();
 const axios = require("axios");
 const OrdersModel = require("../Model/OrdersModel");
 
-// Load environment variables
+
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
 const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
 const CASHFREE_SANDBOX_URL = "https://sandbox.cashfree.com/pg/orders";
 
-// Utility: Save new order to DB
+
 const _saveNewOrder = async (data) => {
   try {
     const newOrder = new OrdersModel({
