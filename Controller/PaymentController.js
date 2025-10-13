@@ -1,16 +1,18 @@
 require('dotenv').config();
-const axios = require("axios");
+const Razorpay = require("razorpay");
+var crypto = require("crypto");
 const OrdersModel = require("../Model/OrdersModel");
 
-
-const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
-const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
-const CASHFREE_SANDBOX_URL = "https://sandbox.cashfree.com/pg/orders";
+const KEY_ID = process.env.RAZORPAY_KEY_ID;
+const SECRET_ID = process.env.RAZORPAY_SECRET_ID;
 
 
-const _saveNewOrder = async (data) => {
+var instance = new Razorpay({ key_id: KEY_ID, key_secret: SECRET_ID });
+
+let _saveNewOrder = async (data) => {
+ 
   try {
-    const newOrder = new OrdersModel({
+    var newOrder = new OrdersModel({
       order_id: data.order_id,
       name: data.name,
       mobile: data.mobile,
@@ -23,78 +25,49 @@ const _saveNewOrder = async (data) => {
     await newOrder.save();
     return true;
   } catch (error) {
-    console.error("Error saving order:", error);
     return false;
   }
 };
 
-// Generate Cashfree order
-module.exports.genOrderId = async (req, res) => {
-  try {
-    const { amount, customer_name, customer_email, customer_phone } = req.body;
-
-    // Unique order id
-    const orderPayload = {
-      order_id: `ORDER_${Date.now()}`,
-      order_amount: amount,
-      order_currency: "INR",
-      customer_details: {
-        customer_name,
-        customer_email,
-        customer_phone,
-      },
-      order_meta: {
-        return_url: "https://yourfrontend.com/payment-success", // update to your frontend route
-        notify_url: "https://yourbackend.com/payment/callback", // optional webhook
-      },
-    };
-
-    const headers = {
-      "Content-Type": "application/json",
-      "x-client-id": CASHFREE_APP_ID,
-      "x-client-secret": CASHFREE_SECRET_KEY,
-    };
-
-    const response = await axios.post(CASHFREE_SANDBOX_URL, orderPayload, { headers });
-
-    if (response.data.status === "OK") {
-      res.status(200).send({ status: true, order: response.data });
+module.exports.genOrderId = (request, response) => {
+  let { amount } = request.body;
+  var options = {
+    amount: amount * 100, 
+    currency: "INR",
+    receipt: "order_rcptid_11",
+  };
+  instance.orders.create(options, function (err, order) {
+    if (err) {
+      response.status(500).send({ status: false });
     } else {
-      res.status(400).send({ status: false, message: response.data.message });
+      response.status(200).send({ status: true, order });
     }
-  } catch (error) {
-    console.error("Error generating order:", error);
-    res.status(500).send({ status: false, error });
+  });
+};
+
+module.exports.verifyPayment = async (request, response) => {
+  let data = request.body;
+  let { payment_id, order_id, signature } = data;
+  let body = order_id + "|" + payment_id;
+
+  var expectedSignature = crypto
+    .createHmac("sha256", SECRET_ID)
+    .update(body.toString())
+    .digest("hex");
+
+  console.log(signature, expectedSignature);
+  if (expectedSignature === signature) {
+    data["payment_status"] = true;
+    await _saveNewOrder(data);
+    response.status(200).send({
+      status: true,
+    });
+  } else {
+    response.status(200).send({
+      status: false,
+    });
   }
 };
 
-// Verify payment (Cashfree callback)
-module.exports.verifyPayment = async (req, res) => {
-  try {
-    const data = req.body;
-
-    // For testing in sandbox, assume success if order_status is PAID
-    if (data.order_status === "PAID") {
-      data.payment_status = true;
-      await _saveNewOrder(data);
-      res.status(200).send({ status: true });
-    } else {
-      res.status(200).send({ status: false });
-    }
-  } catch (error) {
-    console.error("Error verifying payment:", error);
-    res.status(500).send({ status: false });
-  }
-};
-
-// List orders by email
-module.exports.OrderList = async (req, res) => {
-  try {
-    const { email } = req.params;
-    const orders = await OrdersModel.find({ email });
-    res.status(200).send({ status: true, my_order: orders });
-  } catch (error) {
-    console.error("Error fetching orders:", error);
-    res.status(500).send({ status: false });
-  }
-};
+//63899916ec6ac0a4b2cbe197620eef1c515df86dc1a2425080048ae35d80bfc1
+//63899916ec6ac0a4b2cbe197620eef1c515df86dc1a2425080048ae35d80bfc1
