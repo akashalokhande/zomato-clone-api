@@ -32,7 +32,7 @@ module.exports.getRestaurantListByLocID = async (request, response) => {
 module.exports.getRestaurantDetailsByID = async (request, response) => {
   let { id } = request.params;
   try {
-    let result = await RestaurantModel.findone({ _id: id }); // works with string ids
+    let result = await RestaurantModel.findOne({ _id: id }); // works with string ids
     response.send({
       status: true,
       restaurants: result,
