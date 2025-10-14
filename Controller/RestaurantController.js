@@ -50,34 +50,36 @@ module.exports.getRestaurantDetailsByID = async (request, response) => {
 
 
 module.exports.filter = async (request, response) => {
-  let {
-    location,
-    mealtype,
-    l_cost,
-    h_cost,
-    sort,
-    cuisine,
-    page,
-    itemsPerPage
-  } = request.body;
-
-  page = page ? page : 1;
-  sort = sort ? sort : 1;
-  itemsPerPage = itemsPerPage ? itemsPerPage : 2;
-
-  let startingIndex = page * itemsPerPage - itemsPerPage;
-  let lastIndex = page * itemsPerPage;
-
-  let filterData = {};
-
-  if (location) filterData["location_id"] = Number(location);
-  if (mealtype) filterData["mealtype_id"] = Number(mealtype);
-  if (l_cost && h_cost)
-    filterData["min_price"] = { $gte: Number(l_cost), $lte: Number(h_cost) };
-  if (cuisine) filterData["cuisine_id"] = { $in: cuisine.map(Number) };
-
   try {
-    let result = await RestaurantModel.find(filterData, {
+    let {
+      location,
+      mealtype,
+      l_cost,
+      h_cost,
+      sort,
+      cuisine,
+      page,
+      itemsPerPage
+    } = request.body;
+
+    page = Number(page) || 1;
+    sort = Number(sort) || 1;
+    itemsPerPage = Number(itemsPerPage) || 2;
+
+    let startingIndex = (page - 1) * itemsPerPage;
+
+    let filterData = {};
+
+    if (location) filterData["location_id"] = Number(location);
+    if (mealtype) filterData["mealtype_id"] = { $in: [Number(mealtype)] };
+    if (l_cost && h_cost)
+      filterData["min_price"] = { $gte: Number(l_cost), $lte: Number(h_cost) };
+    if (cuisine && cuisine.length)
+      filterData["cuisine_id"] = { $in: cuisine.map(Number) };
+
+    const totalCount = await RestaurantModel.countDocuments(filterData);
+
+    const result = await RestaurantModel.find(filterData, {
       name: 1,
       city: 1,
       locality: 1,
@@ -85,20 +87,24 @@ module.exports.filter = async (request, response) => {
       min_price: 1,
       image: 1,
       cuisine_id: 1,
-      cuisine: 1,
-    }).sort({ min_price: sort });
+      cuisine: 1
+    })
+      .sort({ min_price: sort })
+      .skip(startingIndex)
+      .limit(itemsPerPage);
 
-    const filterResult = result.slice(startingIndex, lastIndex);
     response.status(200).send({
       status: true,
-      result: filterResult,
-      pageCount: Math.ceil(result.length / itemsPerPage),
+      result,
+      pageCount: Math.ceil(totalCount / itemsPerPage)
     });
+
   } catch (error) {
+    console.error("Filter Error:", error);
     response.status(500).send({
       status: false,
-      message: "server error",
-      error,
+      message: "Server error",
+      error
     });
   }
 };
