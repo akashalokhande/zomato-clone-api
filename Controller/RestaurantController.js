@@ -32,7 +32,7 @@ module.exports.getRestaurantListByLocID = async (request, response) => {
 module.exports.getRestaurantDetailsByID = async (request, response) => {
   let { id } = request.params;
   try {
-    let result = await RestaurantModel.findById(id); // .findOne({_id:id})
+    let result = await RestaurantModel.findById(mongoose.Types.ObjectId(id));
     response.send({
       status: true,
       restaurants: result,
@@ -46,6 +46,8 @@ module.exports.getRestaurantDetailsByID = async (request, response) => {
   }
 };
 
+const mongoose = require("mongoose");
+
 module.exports.filter = async (request, response) => {
   let {
     location,
@@ -57,21 +59,22 @@ module.exports.filter = async (request, response) => {
     page,
     itemsPerPage
   } = request.body;
+
   page = page ? page : 1;
   sort = sort ? sort : 1;
   itemsPerPage = itemsPerPage ? itemsPerPage : 2;
 
-  let staringIndex = page * itemsPerPage - itemsPerPage;
+  let startingIndex = page * itemsPerPage - itemsPerPage;
   let lastIndex = page * itemsPerPage;
 
   let filterData = {};
 
-  if (location) filterData["location_id"] = location;
-  if (mealtype) filterData["mealtype_id"] = mealtype;
-  if (l_cost && l_cost) filterData["min_price"] = { $gte: l_cost, $lte: h_cost };
-  cuisine && (filterData["cuisine_id"] = { $in: cuisine });
+  if (location) filterData["location_id"] = Number(location);
+  if (mealtype) filterData["mealtype_id"] = Number(mealtype);
+  if (l_cost && h_cost)
+    filterData["min_price"] = { $gte: Number(l_cost), $lte: Number(h_cost) };
+  if (cuisine) filterData["cuisine_id"] = { $in: cuisine.map(Number) };
 
-  console.log(filterData);
   try {
     let result = await RestaurantModel.find(filterData, {
       name: 1,
@@ -84,11 +87,11 @@ module.exports.filter = async (request, response) => {
       cuisine: 1,
     }).sort({ min_price: sort });
 
-    const filterResult = result.slice(staringIndex, lastIndex);
+    const filterResult = result.slice(startingIndex, lastIndex);
     response.status(200).send({
       status: true,
       result: filterResult,
-      pageCount: Math.ceil(result.length / 2),
+      pageCount: Math.ceil(result.length / itemsPerPage),
     });
   } catch (error) {
     response.status(500).send({
@@ -99,19 +102,22 @@ module.exports.filter = async (request, response) => {
   }
 };
 
+
 module.exports.getMenuItems = async (request, response) => {
   let { rest_id } = request.params;
   try {
-    let result = await MenuItemsModel.find({ restaurantId: rest_id });
+    let result = await MenuItemsModel.find({
+      restaurantId: mongoose.Types.ObjectId(rest_id),
+    });
     response.status(200).send({
       status: true,
       menu_items: result,
     });
   } catch (error) {
-    mongoDbError(error.message);
     response.status(500).send({
       status: false,
       message: "Invalid id is passed",
+      error: error.message,
     });
   }
 };
