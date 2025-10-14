@@ -32,7 +32,7 @@ module.exports.getRestaurantListByLocID = async (request, response) => {
 module.exports.getRestaurantDetailsByID = async (request, response) => {
   let { id } = request.params;
   try {
-    let result = await RestaurantModel.findById(mongoose.Types.ObjectId(id));
+    let result = await RestaurantModel.findone({ _id: id }); // works with string ids
     response.send({
       status: true,
       restaurants: result,
@@ -46,7 +46,8 @@ module.exports.getRestaurantDetailsByID = async (request, response) => {
   }
 };
 
-const mongoose = require("mongoose");
+
+
 
 module.exports.filter = async (request, response) => {
   let {
@@ -106,18 +107,16 @@ module.exports.filter = async (request, response) => {
 module.exports.getMenuItems = async (request, response) => {
   let { rest_id } = request.params;
   try {
-    let result = await MenuItemsModel.find({
-      restaurantId: mongoose.Types.ObjectId(rest_id),
-    });
+    let result = await MenuItemsModel.find({ restaurantId: rest_id });
     response.status(200).send({
       status: true,
       menu_items: result,
     });
   } catch (error) {
+    mongoDbError(error.message);
     response.status(500).send({
       status: false,
       message: "Invalid id is passed",
-      error: error.message,
     });
   }
 };

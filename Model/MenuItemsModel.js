@@ -1,12 +1,10 @@
 const { Schema, model } = require("mongoose");
 
-const ObjectId = Schema.Types.ObjectId;
-
 const MenuItemsSchema = new Schema({
   name: { type: String },
   description: { type: String },
   ingridients: { type: Array },
-  restaurantId: { type: ObjectId },
+  restaurantId: { type: String }, // ← change to String
   image: { type: String },
   qty: { type: Number },
   price: { type: Number },

@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const RestaurantSchema = new mongoose.Schema({
+  _id: { type: String }, // allow custom string ID like "r1"
   name: { type: String },
   city: { type: String },
   location_id: { type: Number },

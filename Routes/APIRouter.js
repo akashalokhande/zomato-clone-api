@@ -3,8 +3,7 @@ const router = express.Router();
 const location = require("../Controller/LocationController");
 const restaurant = require("../Controller/RestaurantController");
 const mealtype = require("../Controller/MealTypeController");
-const payment  = require("../Controller/PaymentController")
-
+const payment = require("../Controller/PaymentController");
 
 router.get("/api/get-location-list", location.getLocationList);
 
