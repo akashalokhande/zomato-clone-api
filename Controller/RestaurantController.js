@@ -64,7 +64,7 @@ module.exports.filter = async (request, response) => {
 
     page = Number(page) || 1;
     sort = Number(sort) || 1;
-    itemsPerPage = Number(itemsPerPage) || 2;
+    itemsPerPage = Number(itemsPerPage) || 4;
 
     let startingIndex = (page - 1) * itemsPerPage;
 
